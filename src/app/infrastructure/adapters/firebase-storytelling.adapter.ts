@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Functions, httpsCallable } from '@angular/fire/functions';
 import { Observable, Subject } from 'rxjs';
-import { GoogleGenAI, Session, LiveServerMessage, Modality, ActivityHandling, StartSensitivity } from '@google/genai';
+import { GoogleGenAI, Session, LiveServerMessage, Modality, ActivityHandling } from '@google/genai';
 import { StorytellingPort, LiveContentChunk } from '../../core/ports/storytelling.port';
 import { AgentConfig } from '../../core/models/agent-config.model';
 
@@ -12,6 +12,10 @@ export class FirebaseStorytellingAdapter implements StorytellingPort {
   private chunkSubject = new Subject<LiveContentChunk>();
   private lastVideoFrame: string | null = null;
   private frameCount = 0;
+  private nudgeTimer: ReturnType<typeof setInterval> | null = null;
+  private isModelTurn = false;
+  private isSpeaking = false;
+  private sessionReady = false;
 
   private readonly getConfigFn = httpsCallable<{ agentId: string }, AgentConfig>(this.functions, 'getLiveConfig');
 
@@ -42,9 +46,7 @@ export class FirebaseStorytellingAdapter implements StorytellingPort {
         outputAudioTranscription: {},
         realtimeInputConfig: {
           activityHandling: ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
-          automaticActivityDetection: {
-            startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_HIGH,
-          },
+          automaticActivityDetection: { disabled: true },
         },
       },
       callbacks: {
@@ -57,6 +59,19 @@ export class FirebaseStorytellingAdapter implements StorytellingPort {
           setTimeout(() => {
             console.log('[CUE] 📝 Enviando prompt inicial:', initialPrompt.slice(0, 80));
             this.sendText(initialPrompt);
+            this.sessionReady = true;
+
+            if (config.visionNudgeIntervalSeconds > 0) {
+              this.nudgeTimer = setInterval(() => {
+                if (this.lastVideoFrame && this.session && !this.isModelTurn) {
+                  console.log('[CUE] 👁️ Vision nudge enviado');
+                  this.session.sendClientContent({
+                    turns: [{ role: 'user', parts: [{ text: config.visionNudgeText }] }],
+                    turnComplete: true,
+                  });
+                }
+              }, config.visionNudgeIntervalSeconds * 1000);
+            }
           }, 2000);
         },
         onmessage: (msg: LiveServerMessage) => {
@@ -75,7 +90,28 @@ export class FirebaseStorytellingAdapter implements StorytellingPort {
   }
 
   sendAudio(base64PCM: string): void {
-    this.session?.sendRealtimeInput({
+    if (!this.session || !this.sessionReady) return;
+
+    // IonicMediaAdapter sends zeros (silence) when RMS < threshold.
+    // A zero-filled Int16Array encodes to base64 starting with many 'A' chars.
+    const silent = base64PCM.startsWith('AAAAAAAAAAAAAAAA');
+
+    if (silent) {
+      if (this.isSpeaking) {
+        this.isSpeaking = false;
+        this.session.sendRealtimeInput({ activityEnd: {} });
+        console.log('[CUE] 🔇 Fin de voz detectado');
+      }
+      return;
+    }
+
+    if (!this.isSpeaking) {
+      this.isSpeaking = true;
+      this.session.sendRealtimeInput({ activityStart: {} });
+      console.log('[CUE] 🎙️ Inicio de voz detectado');
+    }
+
+    this.session.sendRealtimeInput({
       audio: { mimeType: 'audio/pcm;rate=16000', data: base64PCM },
     });
   }
@@ -98,10 +134,17 @@ export class FirebaseStorytellingAdapter implements StorytellingPort {
   }
 
   disconnect(): void {
+    if (this.nudgeTimer !== null) {
+      clearInterval(this.nudgeTimer);
+      this.nudgeTimer = null;
+    }
     this.session?.close();
     this.session = null;
     this.lastVideoFrame = null;
     this.frameCount = 0;
+    this.isModelTurn = false;
+    this.isSpeaking = false;
+    this.sessionReady = false;
   }
 
   private _handleMessage(msg: LiveServerMessage): void {
@@ -109,6 +152,7 @@ export class FirebaseStorytellingAdapter implements StorytellingPort {
 
     if (msg.serverContent.interrupted) {
       console.log('[CUE] ⚡ Modelo interrumpido por el usuario');
+      this.isModelTurn = false;
       this.chunkSubject.next({ interrupted: true });
       return;
     }
@@ -120,13 +164,16 @@ export class FirebaseStorytellingAdapter implements StorytellingPort {
     const parts = msg.serverContent.modelTurn?.parts ?? [];
     parts.forEach(part => {
       if (part.inlineData?.data) {
+        this.isModelTurn = true;
         console.log('[CUE] 🎵 Audio chunk recibido — bytes base64:', part.inlineData.data.length);
         this.chunkSubject.next({ audioChunk: part.inlineData.data });
       }
     });
 
     if (msg.serverContent.turnComplete) {
-      console.log('[CUE] ✔️ Turno del modelo completo');
+      console.log('[CUE] ✔️ Turno del modelo completo — mic abierto');
+      this.isModelTurn = false;
+      this.chunkSubject.next({ turnComplete: true });
     }
   }
 

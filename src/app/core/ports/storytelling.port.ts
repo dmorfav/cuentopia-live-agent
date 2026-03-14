@@ -5,6 +5,7 @@ export interface LiveContentChunk {
   audioChunk?: string;
   visionCapture?: true;
   interrupted?: true;
+  turnComplete?: true;
 }
 
 export abstract class StorytellingPort {

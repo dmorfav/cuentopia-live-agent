@@ -90,9 +90,9 @@ const LISTEN_RULES =
   'Lo que el niño diga siempre tiene prioridad máxima sobre el plan narrativo.\n\n';
 
 const NAME_FALLBACK =
-  'Si el niño no dice su nombre en 10 segundos, mira la cámara y propón un apodo gracioso basado en lo que ves ' +
-  '(pelo, expresión, edad aparente). Ejemplo: "Como veo que tienes el pelo tan rizado y unos 5 añitos, ¡te llamaré Rizos Cohete! ¿Te gusta?" ' +
-  'Si dice que no, propón otro diferente. Una vez acepte el nombre, sigue adelante.\n\n';
+  'Si el niño no responde, mira la cámara e invéntate un apodo gracioso basado en lo que ves ' +
+  '(pelo, expresión, edad aparente). Dilo así: "Como veo que tienes [algo gracioso], ¡te llamaré [apodo]! ¿Te gusta?" ' +
+  'Si dice que no, propón otro. Una vez acepte, sigue adelante.\n\n';
 
 const FORMAT_RULES =
   'FORMATO: Máximo 2-3 frases por turno. Español. ' +

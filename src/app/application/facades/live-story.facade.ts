@@ -41,6 +41,8 @@ export class LiveStoryFacade {
 
   readonly cameraStream$ = this.mediaCapturePort.getStream();
 
+  private isModelSpeaking = false;
+  private pendingMicOpen = false;
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private waveformFrameId: number | null = null;
@@ -97,8 +99,14 @@ export class LiveStoryFacade {
             console.log('[CUE] ✅ Primer chunk recibido — sesión activa');
           }
           if (chunk.interrupted) {
-            console.log('[CUE] ⚡ Interrupción — cortando audio en curso');
+            console.log('[CUE] ⚡ Interrupción — cortando audio, abriendo mic');
             this._stopAllSources();
+            this.isModelSpeaking = false;
+            return;
+          }
+          if (chunk.turnComplete) {
+            console.log('[CUE] ✔️ Turno completo — mic abierto');
+            this.isModelSpeaking = false;
             return;
           }
           if (chunk.visionCapture) {
@@ -108,7 +116,7 @@ export class LiveStoryFacade {
           }
           if (chunk.text) this._currentStory.update(prev => prev + ' ' + chunk.text);
           if (chunk.audioChunk) {
-            console.log('[CUE] 🔊 audioChunk recibido — reproduciendo');
+            this.isModelSpeaking = true;
             this._playAudioChunk(chunk.audioChunk);
           }
         },
@@ -130,6 +138,7 @@ export class LiveStoryFacade {
     this.mediaCapturePort.stopCapture();
     this._hasStream.set(false);
     this._stopAllSources();
+    this.isModelSpeaking = false;
     this.hasReceivedFirstChunk = false;
     if (this.audioContext && this.audioContext.state !== 'closed') {
       this.audioContext.close();
@@ -251,6 +260,7 @@ export class LiveStoryFacade {
     this.storytellingPort.disconnect();
     this.mediaCapturePort.stopCapture();
     this._stopAllSources();
+    this.isModelSpeaking = false;
     this.hasReceivedFirstChunk = false;
     if (this.audioContext && this.audioContext.state !== 'closed') {
       this.audioContext.close();

@@ -101,7 +101,7 @@ export class IonicMediaAdapter implements MediaCapturePort {
 
     this.audioProcessor = this.audioContext.createScriptProcessor(4096, 1, 1);
 
-    const NOISE_GATE_THRESHOLD = 0.01;
+    const NOISE_GATE_THRESHOLD = 0.001;
 
     let audioChunkCount = 0;
     this.audioProcessor.onaudioprocess = (e) => {
@@ -145,14 +145,15 @@ export class IonicMediaAdapter implements MediaCapturePort {
     const context = this.canvasElement.getContext('2d');
     if (!context) return;
 
-    this.canvasElement.width = 320;
-    this.canvasElement.height = 240;
-    context.drawImage(this.videoElement, 0, 0, 320, 240);
-    const base64Data = this.canvasElement.toDataURL('image/jpeg', 0.8);
+    this.canvasElement.width = 640;
+    this.canvasElement.height = 480;
+    context.drawImage(this.videoElement, 0, 0, 640, 480);
+    const base64Data = this.canvasElement.toDataURL('image/jpeg', 0.9);
 
     this.frameExtractCount++;
     if (this.frameExtractCount % 5 === 0) {
       console.log(`[CUE] 🖼️ Frame #${this.frameExtractCount} capturado — ${base64Data.length} chars`);
+      console.log(`%c `, `font-size:100px;background:url(${base64Data}) no-repeat center/contain`);
     }
 
     this.frameSubject.next({
