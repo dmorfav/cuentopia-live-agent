@@ -50,14 +50,7 @@
     <div class="status-area">
       @switch (facade.sessionState()) {
         @case ('idle') {
-          <p class="status-text">¿Cómo te llamas?</p>
-          <ion-input
-            class="name-input"
-            placeholder="Tu nombre..."
-            maxlength="20"
-            [value]="childName()"
-            (ionInput)="childName.set($event.detail.value ?? '')"
-          ></ion-input>
+          <p class="status-text">¡Toca para comenzar!</p>
         }
         @case ('connecting') {
           <ion-spinner name="dots" color="primary"></ion-spinner>

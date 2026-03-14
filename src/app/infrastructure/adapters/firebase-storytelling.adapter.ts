@@ -39,6 +39,7 @@ export class FirebaseStorytellingAdapter implements StorytellingPort {
         },
         systemInstruction: { parts: [{ text: config.systemPrompt }] },
         thinkingConfig: { thinkingBudget: 0 },
+        outputAudioTranscription: {},
         realtimeInputConfig: {
           activityHandling: ActivityHandling.START_OF_ACTIVITY_INTERRUPTS,
           automaticActivityDetection: {
@@ -112,12 +113,12 @@ export class FirebaseStorytellingAdapter implements StorytellingPort {
       return;
     }
 
+    if (msg.serverContent.outputTranscription?.text) {
+      this.chunkSubject.next({ text: msg.serverContent.outputTranscription.text });
+    }
+
     const parts = msg.serverContent.modelTurn?.parts ?? [];
     parts.forEach(part => {
-      if (part.text) {
-        console.log('[CUE] 📖 Texto recibido:', part.text.slice(0, 60));
-        this.chunkSubject.next({ text: part.text });
-      }
       if (part.inlineData?.data) {
         console.log('[CUE] 🎵 Audio chunk recibido — bytes base64:', part.inlineData.data.length);
         this.chunkSubject.next({ audioChunk: part.inlineData.data });

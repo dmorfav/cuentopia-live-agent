@@ -1,20 +1,93 @@
-import { Component, signal, inject, OnInit } from '@angular/core';
+import { Component, signal, inject, OnInit, Input } from '@angular/core';
+import { SlicePipe } from '@angular/common';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent,
-  IonList, IonItem, IonLabel, IonNote,
+  IonList, IonItem, IonItemSliding, IonItemOptions, IonItemOption,
+  IonLabel, IonNote,
   IonCard, IonCardHeader, IonCardTitle, IonCardContent,
-  IonButton, IonIcon, IonInput, IonItemDivider, IonSpinner
+  IonButton, IonButtons, IonIcon, IonInput, IonItemDivider, IonSpinner,
+  IonRefresher, IonRefresherContent,
+  ModalController, RefresherCustomEvent
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
-import { lockClosed, lockOpen, statsChart, book } from 'ionicons/icons';
+import { lockClosed, lockOpen, statsChart, book, close, trash } from 'ionicons/icons';
 import { SessionPort } from '../../../core/ports/session.port';
 
 interface SessionEntry {
   id: string;
   topic: string;
+  storyText: string;
   durationSeconds: number;
   startedAt: Date;
 }
+
+// ---------------------------------------------------------------------------
+// Modal component — inline, only used by ProgressPage
+// ---------------------------------------------------------------------------
+
+@Component({
+  selector: 'app-session-detail-modal',
+  template: `
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>{{ topic }}</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="dismiss()">
+            <ion-icon slot="icon-only" name="close"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="ion-padding">
+      <p class="meta">{{ formattedDate }} · {{ formattedDuration }}</p>
+      @if (storyText) {
+        <p class="transcript">{{ storyText }}</p>
+      } @else {
+        <p class="no-transcript">Sin transcripción disponible para esta sesión.</p>
+      }
+    </ion-content>
+  `,
+  styles: [`
+    .meta {
+      font-size: 0.85em;
+      color: var(--ion-color-medium);
+      margin-bottom: 16px;
+    }
+    .transcript {
+      font-size: 0.95em;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      color: var(--ion-color-dark);
+    }
+    .no-transcript {
+      color: var(--ion-color-medium);
+      text-align: center;
+      margin-top: 48px;
+    }
+  `],
+  standalone: true,
+  imports: [IonHeader, IonToolbar, IonTitle, IonContent, IonButton, IonButtons, IonIcon]
+})
+export class SessionDetailModal {
+  private readonly modalCtrl = inject(ModalController);
+
+  @Input() topic = '';
+  @Input() storyText = '';
+  @Input() formattedDate = '';
+  @Input() formattedDuration = '';
+
+  constructor() {
+    addIcons({ close });
+  }
+
+  dismiss(): void {
+    this.modalCtrl.dismiss();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Progress page
+// ---------------------------------------------------------------------------
 
 const PARENT_PIN = '1234';
 
@@ -47,6 +120,9 @@ const PARENT_PIN = '1234';
           <ion-button expand="block" (click)="unlock()">Desbloquear</ion-button>
         </div>
       } @else {
+        <ion-refresher slot="fixed" (ionRefresh)="handleRefresh($event)">
+          <ion-refresher-content></ion-refresher-content>
+        </ion-refresher>
         <div class="dashboard ion-padding">
           @if (loading()) {
             <div class="ion-text-center ion-padding">
@@ -58,14 +134,16 @@ const PARENT_PIN = '1234';
               <p>Aún no hay sesiones registradas.</p>
             </div>
           } @else {
-            <ion-card>
+            <ion-card (click)="openDetail(sessions()[0])" button="true">
               <ion-card-header>
                 <ion-card-title>Última sesión</ion-card-title>
               </ion-card-header>
               <ion-card-content>
                 <p><strong>{{ sessions()[0].topic }}</strong></p>
-                <p>Duración: {{ formatDuration(sessions()[0].durationSeconds) }}</p>
-                <p>{{ formatDate(sessions()[0].startedAt) }}</p>
+                <p>Duración: {{ formatDuration(sessions()[0].durationSeconds) }} · {{ formatDate(sessions()[0].startedAt) }}</p>
+                @if (sessions()[0].storyText) {
+                  <p class="preview">{{ sessions()[0].storyText | slice:0:160 }}{{ sessions()[0].storyText.length > 160 ? '…' : '' }}</p>
+                }
               </ion-card-content>
             </ion-card>
 
@@ -74,14 +152,24 @@ const PARENT_PIN = '1234';
                 <ion-label>Historial de Cuentos</ion-label>
               </ion-item-divider>
               @for (session of sessions(); track session.id) {
-                <ion-item>
-                  <ion-icon name="book" slot="start" color="primary"></ion-icon>
-                  <ion-label>
-                    <h3>{{ session.topic }}</h3>
-                    <p>{{ formatDate(session.startedAt) }}</p>
-                  </ion-label>
-                  <ion-note slot="end">{{ formatDuration(session.durationSeconds) }}</ion-note>
-                </ion-item>
+                <ion-item-sliding>
+                  <ion-item (click)="openDetail(session)" button="true" detail="true">
+                    <ion-icon name="book" slot="start" color="primary"></ion-icon>
+                    <ion-label>
+                      <h3>{{ session.topic }}</h3>
+                      <p>{{ formatDate(session.startedAt) }}</p>
+                      @if (session.storyText) {
+                        <p class="preview-sm">{{ session.storyText | slice:0:80 }}{{ session.storyText.length > 80 ? '…' : '' }}</p>
+                      }
+                    </ion-label>
+                    <ion-note slot="end">{{ formatDuration(session.durationSeconds) }}</ion-note>
+                  </ion-item>
+                  <ion-item-options side="end">
+                    <ion-item-option color="danger" expandable="true" (click)="deleteSession(session.id)">
+                      <ion-icon slot="icon-only" name="trash"></ion-icon>
+                    </ion-item-option>
+                  </ion-item-options>
+                </ion-item-sliding>
               }
             </ion-list>
           }
@@ -104,17 +192,32 @@ const PARENT_PIN = '1234';
       margin-bottom: 12px;
       width: 150px;
     }
+    .preview {
+      margin-top: 8px;
+      font-size: 0.82em;
+      color: var(--ion-color-medium);
+      line-height: 1.4;
+    }
+    .preview-sm {
+      font-size: 0.78em;
+      color: var(--ion-color-medium);
+      margin-top: 2px;
+    }
   `],
   standalone: true,
   imports: [
+    SlicePipe,
     IonHeader, IonToolbar, IonTitle, IonContent,
-    IonList, IonItem, IonLabel, IonNote,
+    IonList, IonItem, IonItemSliding, IonItemOptions, IonItemOption,
+    IonLabel, IonNote,
     IonCard, IonCardHeader, IonCardTitle, IonCardContent,
-    IonButton, IonIcon, IonInput, IonItemDivider, IonSpinner
+    IonButton, IonIcon, IonInput, IonItemDivider, IonSpinner,
+    IonRefresher, IonRefresherContent
   ]
 })
 export class ProgressPage implements OnInit {
   private readonly sessionPort = inject(SessionPort);
+  private readonly modalCtrl = inject(ModalController);
 
   isUnlocked = signal(false);
   pinValue = signal<string>('');
@@ -123,7 +226,7 @@ export class ProgressPage implements OnInit {
   sessions = signal<SessionEntry[]>([]);
 
   constructor() {
-    addIcons({ lockClosed, lockOpen, statsChart, book });
+    addIcons({ lockClosed, lockOpen, statsChart, book, close, trash });
   }
 
   ngOnInit(): void {
@@ -140,6 +243,33 @@ export class ProgressPage implements OnInit {
     }
   }
 
+  async handleRefresh(event: RefresherCustomEvent): Promise<void> {
+    await this._loadSessions({ silent: true });
+    event.detail.complete();
+  }
+
+  async deleteSession(id: string): Promise<void> {
+    try {
+      await this.sessionPort.delete(id);
+      this.sessions.update(prev => prev.filter(s => s.id !== id));
+    } catch (err) {
+      console.error('Error eliminando sesión:', err);
+    }
+  }
+
+  async openDetail(session: SessionEntry): Promise<void> {
+    const modal = await this.modalCtrl.create({
+      component: SessionDetailModal,
+      componentProps: {
+        topic: session.topic,
+        storyText: session.storyText,
+        formattedDate: this.formatDate(session.startedAt),
+        formattedDuration: this.formatDuration(session.durationSeconds),
+      },
+    });
+    await modal.present();
+  }
+
   formatDuration(seconds: number): string {
     if (!seconds) return '< 1 min';
     const m = Math.floor(seconds / 60);
@@ -154,15 +284,15 @@ export class ProgressPage implements OnInit {
     });
   }
 
-  private async _loadSessions(): Promise<void> {
-    this.loading.set(true);
+  private async _loadSessions(opts: { silent?: boolean } = {}): Promise<void> {
+    if (!opts.silent) this.loading.set(true);
     try {
       const records = await this.sessionPort.getRecent(10);
       this.sessions.set(records);
     } catch (err) {
       console.error('Error cargando sesiones:', err);
     } finally {
-      this.loading.set(false);
+      if (!opts.silent) this.loading.set(false);
     }
   }
 }
