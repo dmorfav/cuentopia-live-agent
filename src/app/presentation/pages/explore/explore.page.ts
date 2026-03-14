@@ -63,10 +63,7 @@ interface StoryTheme {
                     }
                   }
                   <ion-card-header>
-                    <div class="topic-header">
-                      <ion-icon [name]="topic.icon" color="primary" style="font-size: 32px;"></ion-icon>
-                      <ion-card-title>{{ topic.title }}</ion-card-title>
-                    </div>
+                    <ion-card-title>{{ topic.title }}</ion-card-title>
                     <ion-card-subtitle>{{ topic.subtitle }}</ion-card-subtitle>
                   </ion-card-header>
                 </ion-card>
@@ -78,20 +75,14 @@ interface StoryTheme {
     </ion-content>
   `,
   styles: [`
-    .topic-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 8px;
-    }
     .theme-image {
       width: 100%;
-      height: 200px;
+      aspect-ratio: 16 / 9;
       object-fit: cover;
     }
     .image-placeholder {
       width: 100%;
-      height: 200px;
+      aspect-ratio: 16 / 9;
       background-color: var(--ion-color-light);
       display: flex;
       align-items: center;
@@ -103,10 +94,10 @@ interface StoryTheme {
   imports: [
     IonHeader, IonToolbar, IonTitle, IonContent,
     IonGrid, IonRow, IonCol, IonCard, IonCardHeader,
-    IonCardTitle, IonCardSubtitle, IonIcon,
+    IonCardTitle, IonCardSubtitle,
     IonText, IonSpinner
   ]
-})
+}
 export class ExplorePage {
   private readonly router = inject(Router);
   private readonly firestore = inject(Firestore);
