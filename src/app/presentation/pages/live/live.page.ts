@@ -1,6 +1,6 @@
-import { Component, inject, viewChild, ElementRef, effect, signal } from '@angular/core';
+import { Component, inject, viewChild, ElementRef, effect } from '@angular/core';
 import {
-  IonContent, IonIcon, IonSpinner, IonInput
+  IonContent, IonIcon, IonSpinner
 } from '@ionic/angular/standalone';
 import { NavController } from '@ionic/angular/standalone';
 import { ActivatedRoute } from '@angular/router';
@@ -14,7 +14,7 @@ import {
 @Component({
   selector: 'app-live',
   standalone: true,
-  imports: [IonContent, IonIcon, IonSpinner, IonInput],
+  imports: [IonContent, IonIcon, IonSpinner],
   templateUrl: './live.page.html',
   styleUrls: ['./live.page.scss']
 })
@@ -25,8 +25,6 @@ export class LivePage {
 
   readonly videoRef = viewChild<ElementRef<HTMLVideoElement>>('previewVideo');
   private readonly cameraStream = toSignal(this.facade.cameraStream$);
-
-  readonly childName = signal<string>('');
 
   constructor() {
     addIcons({ close, mic, micOff, stop, happy, alertCircle, bookOutline, refresh });
@@ -48,12 +46,11 @@ export class LivePage {
     const params = this.route.snapshot.queryParams;
     const topic: string = params['topic'];
     const agentId: string = params['agentId'];
-    const name = this.childName().trim() || 'Pequeño Aventurero';
 
     if (topic && agentId) {
-      this.facade.startStorytelling(name, topic, agentId);
+      this.facade.startStorytelling('', topic, agentId);
     } else {
-      this.facade.startStorytelling(name, '', 'narrator-onboarding');
+      this.facade.startStorytelling('', 'Conversación Libre', 'narrator-onboarding');
     }
   }
 

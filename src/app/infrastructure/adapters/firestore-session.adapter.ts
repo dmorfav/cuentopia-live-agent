@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import {
-  Firestore, collection, addDoc, getDocs,
-  query, orderBy, limit as firestoreLimit, where,
+  Firestore, collection, addDoc, getDocs, doc, deleteDoc,
+  query, limit as firestoreLimit, where,
   serverTimestamp, Timestamp
 } from '@angular/fire/firestore';
 import { Auth } from '@angular/fire/auth';
@@ -47,5 +47,9 @@ export class FirestoreSessionAdapter implements SessionPort {
         };
       })
       .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+  }
+
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(this.firestore, 'sessions', id));
   }
 }
