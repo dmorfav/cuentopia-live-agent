@@ -85,6 +85,7 @@ export class IonicMediaAdapter implements MediaCapturePort {
   private _startFrameAndAudioCapture(): void {
     if (!this.mediaStream) return;
 
+    console.log('[CUE] 📷 Iniciando captura de frames y audio');
     this._setupAudioCapture(this.mediaStream);
 
     this.captureInterval = setInterval(() => {
@@ -102,6 +103,7 @@ export class IonicMediaAdapter implements MediaCapturePort {
 
     const NOISE_GATE_THRESHOLD = 0.01;
 
+    let audioChunkCount = 0;
     this.audioProcessor.onaudioprocess = (e) => {
         e.outputBuffer.getChannelData(0).fill(0);
 
@@ -110,6 +112,11 @@ export class IonicMediaAdapter implements MediaCapturePort {
         let sum = 0;
         for (let i = 0; i < inputData.length; i++) sum += inputData[i] * inputData[i];
         const rms = Math.sqrt(sum / inputData.length);
+
+        audioChunkCount++;
+        if (audioChunkCount % 50 === 0) {
+          console.log(`[CUE] 🎙️ Audio capturando — chunk #${audioChunkCount}, RMS: ${rms.toFixed(4)}, voz: ${rms >= NOISE_GATE_THRESHOLD ? 'SÍ' : 'silencio'}`);
+        }
 
         if (rms < NOISE_GATE_THRESHOLD) {
             const silence = new Int16Array(inputData.length);
@@ -132,6 +139,7 @@ export class IonicMediaAdapter implements MediaCapturePort {
     this.audioProcessor.connect(silentGain);
   }
 
+  private frameExtractCount = 0;
   private _extractFrame() {
     if (!this.mediaStream || !this.videoElement.videoWidth) return;
     const context = this.canvasElement.getContext('2d');
@@ -141,6 +149,11 @@ export class IonicMediaAdapter implements MediaCapturePort {
     this.canvasElement.height = 240;
     context.drawImage(this.videoElement, 0, 0, 320, 240);
     const base64Data = this.canvasElement.toDataURL('image/jpeg', 0.8);
+
+    this.frameExtractCount++;
+    if (this.frameExtractCount % 5 === 0) {
+      console.log(`[CUE] 🖼️ Frame #${this.frameExtractCount} capturado — ${base64Data.length} chars`);
+    }
 
     this.frameSubject.next({
       base64Data,

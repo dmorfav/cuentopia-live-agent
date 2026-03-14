@@ -1,6 +1,6 @@
 import { Component, inject, viewChild, ElementRef, effect, signal } from '@angular/core';
 import {
-  IonContent, IonButton, IonIcon, IonSpinner, IonInput
+  IonContent, IonIcon, IonSpinner, IonInput
 } from '@ionic/angular/standalone';
 import { NavController } from '@ionic/angular/standalone';
 import { ActivatedRoute } from '@angular/router';
@@ -14,7 +14,7 @@ import {
 @Component({
   selector: 'app-live',
   standalone: true,
-  imports: [IonContent, IonButton, IonIcon, IonSpinner, IonInput],
+  imports: [IonContent, IonIcon, IonSpinner, IonInput],
   templateUrl: './live.page.html',
   styleUrls: ['./live.page.scss']
 })

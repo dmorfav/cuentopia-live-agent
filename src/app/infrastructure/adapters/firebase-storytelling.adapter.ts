@@ -97,14 +97,29 @@ export class FirebaseStorytellingAdapter implements StorytellingPort {
   }
 
   private _handleMessage(msg: LiveServerMessage): void {
-    if (msg.serverContent?.interrupted) {
+    if (!msg.serverContent) return;
+
+    if (msg.serverContent.interrupted) {
+      console.log('[CUE] ⚡ Modelo interrumpido por el usuario');
       this.chunkSubject.next({ interrupted: true });
       return;
     }
-    msg.serverContent?.modelTurn?.parts?.forEach(part => {
-      if (part.text) this.chunkSubject.next({ text: part.text });
-      if (part.inlineData?.data) this.chunkSubject.next({ audioChunk: part.inlineData.data });
+
+    const parts = msg.serverContent.modelTurn?.parts ?? [];
+    parts.forEach(part => {
+      if (part.text) {
+        console.log('[CUE] 📖 Texto recibido:', part.text.slice(0, 60));
+        this.chunkSubject.next({ text: part.text });
+      }
+      if (part.inlineData?.data) {
+        console.log('[CUE] 🎵 Audio chunk recibido — bytes base64:', part.inlineData.data.length);
+        this.chunkSubject.next({ audioChunk: part.inlineData.data });
+      }
     });
+
+    if (msg.serverContent.turnComplete) {
+      console.log('[CUE] ✔️ Turno del modelo completo');
+    }
   }
 
 }

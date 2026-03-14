@@ -97,7 +97,7 @@ interface StoryTheme {
     IonCardTitle, IonCardSubtitle,
     IonText, IonSpinner
   ]
-}
+})
 export class ExplorePage {
   private readonly router = inject(Router);
   private readonly firestore = inject(Firestore);

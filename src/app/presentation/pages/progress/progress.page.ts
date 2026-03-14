@@ -1,7 +1,7 @@
 import { Component, signal, inject, OnInit } from '@angular/core';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent,
-  IonList, IonItem, IonLabel, IonNote, IonBadge,
+  IonList, IonItem, IonLabel, IonNote,
   IonCard, IonCardHeader, IonCardTitle, IonCardContent,
   IonButton, IonIcon, IonInput, IonItemDivider, IonSpinner
 } from '@ionic/angular/standalone';
@@ -108,7 +108,7 @@ const PARENT_PIN = '1234';
   standalone: true,
   imports: [
     IonHeader, IonToolbar, IonTitle, IonContent,
-    IonList, IonItem, IonLabel, IonNote, IonBadge,
+    IonList, IonItem, IonLabel, IonNote,
     IonCard, IonCardHeader, IonCardTitle, IonCardContent,
     IonButton, IonIcon, IonInput, IonItemDivider, IonSpinner
   ]
