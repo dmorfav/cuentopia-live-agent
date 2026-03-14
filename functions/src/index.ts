@@ -12,11 +12,6 @@ interface AgentFirestoreData {
   voiceName: string;
 }
 
-const GEMINI_WS_URL =
-  "wss://generativelanguage.googleapis.com/ws/" +
-  "google.ai.generativelanguage.v1beta" +
-  ".GenerativeService.BidiGenerateContent";
-
 /**
  * Provee la configuración para la Gemini Multimodal Live API.
  * La configuración del agente vive exclusivamente en Firestore.
@@ -57,7 +52,6 @@ export const getLiveConfig = onCall({cors: true}, async (request) => {
 
   return {
     apiKey,
-    baseUrl: GEMINI_WS_URL,
     model: data.model,
     systemPrompt: data.systemPrompt,
     initialPromptTemplate: data.initialPromptTemplate,

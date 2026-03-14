@@ -93,13 +93,23 @@ export class LiveStoryFacade {
             this.hasReceivedFirstChunk = true;
             this._sessionState.set('active');
             this._startWaveformLoop();
+            console.log('[CUE] ✅ Primer chunk recibido — sesión activa');
+          }
+          if (chunk.interrupted) {
+            console.log('[CUE] ⚡ Interrupción — vaciando queue de audio');
+            this.nextStartTime = 0;
+            return;
           }
           if (chunk.visionCapture) {
+            console.log('[CUE] 👁️ visionCapture recibido — activando halo');
             this._isVisionScanning.set(true);
             setTimeout(() => this._isVisionScanning.set(false), 1500);
           }
           if (chunk.text) this._currentStory.update(prev => prev + ' ' + chunk.text);
-          if (chunk.audioChunk) this._playAudioChunk(chunk.audioChunk);
+          if (chunk.audioChunk) {
+            console.log('[CUE] 🔊 audioChunk recibido — reproduciendo');
+            this._playAudioChunk(chunk.audioChunk);
+          }
         },
         error: (err) => this._handleError(err)
       })

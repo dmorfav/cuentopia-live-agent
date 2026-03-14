@@ -36,6 +36,7 @@ export class LivePage {
       const videoEl = this.videoRef()?.nativeElement;
       if (stream && videoEl) {
         videoEl.srcObject = stream;
+        videoEl.muted = true;
         videoEl.play().catch(() => { /* autoplay blocked */ });
       }
     });

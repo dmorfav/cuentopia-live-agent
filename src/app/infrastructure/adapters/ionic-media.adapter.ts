@@ -74,6 +74,7 @@ export class IonicMediaAdapter implements MediaCapturePort {
       });
 
       this.videoElement.srcObject = this.mediaStream;
+      this.videoElement.muted = true;
       this.videoElement.play();
       this.streamSubject.next(this.mediaStream);
     } catch (error) {
@@ -102,6 +103,8 @@ export class IonicMediaAdapter implements MediaCapturePort {
     const NOISE_GATE_THRESHOLD = 0.01;
 
     this.audioProcessor.onaudioprocess = (e) => {
+        e.outputBuffer.getChannelData(0).fill(0);
+
         const inputData = e.inputBuffer.getChannelData(0);
 
         let sum = 0;
@@ -121,8 +124,12 @@ export class IonicMediaAdapter implements MediaCapturePort {
         this.audioSubject.next(this._arrayBufferToBase64(pcm16.buffer));
     };
 
+    const silentGain = this.audioContext.createGain();
+    silentGain.gain.value = 0;
+    silentGain.connect(this.audioContext.destination);
+
     this.audioSource.connect(this.audioProcessor);
-    this.audioProcessor.connect(this.audioContext.destination);
+    this.audioProcessor.connect(silentGain);
   }
 
   private _extractFrame() {
