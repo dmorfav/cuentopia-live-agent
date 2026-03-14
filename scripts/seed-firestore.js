@@ -255,10 +255,13 @@ const storyThemes = [
   },
 ];
 
-const keyParam = USE_EMULATOR ? '' : `?key=${API_KEY}`;
+const keyParam    = USE_EMULATOR ? '' : `?key=${API_KEY}`;
+const adminHeaders = USE_EMULATOR
+  ? { 'Authorization': 'Bearer owner', 'Content-Type': 'application/json' }
+  : { 'Content-Type': 'application/json' };
 
 async function docExists(baseUrl, id) {
-  const res = await fetch(`${baseUrl}/${id}${keyParam}`);
+  const res = await fetch(`${baseUrl}/${id}${keyParam}`, { headers: adminHeaders });
   const data = await res.json();
   return !data.error;
 }
@@ -266,7 +269,7 @@ async function docExists(baseUrl, id) {
 async function upsertDoc(baseUrl, id, fields) {
   const res = await fetch(`${baseUrl}/${id}${keyParam}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: adminHeaders,
     body: JSON.stringify({ fields }),
   });
   const data = await res.json();
