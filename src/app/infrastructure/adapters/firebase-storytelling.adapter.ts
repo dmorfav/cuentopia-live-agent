@@ -125,6 +125,7 @@ export class FirebaseStorytellingAdapter implements StorytellingPort {
     this.socket.send(JSON.stringify({
       client_content: { turns: [{ role: 'user', parts }], turn_complete: true }
     }));
+    this.chunkSubject.next({ visionCapture: true });
   }
 
   sendText(text: string): void {

@@ -36,6 +36,9 @@ export class LiveStoryFacade {
   private readonly _waveformBars = signal<number[]>([4, 4, 4, 4, 4]);
   readonly waveformBars = computed(() => this._waveformBars());
 
+  private readonly _isVisionScanning = signal<boolean>(false);
+  readonly isVisionScanning = computed(() => this._isVisionScanning());
+
   readonly cameraStream$ = this.mediaCapturePort.getStream();
 
   private audioContext: AudioContext | null = null;
@@ -90,6 +93,10 @@ export class LiveStoryFacade {
             this.hasReceivedFirstChunk = true;
             this._sessionState.set('active');
             this._startWaveformLoop();
+          }
+          if (chunk.visionCapture) {
+            this._isVisionScanning.set(true);
+            setTimeout(() => this._isVisionScanning.set(false), 1500);
           }
           if (chunk.text) this._currentStory.update(prev => prev + ' ' + chunk.text);
           if (chunk.audioChunk) this._playAudioChunk(chunk.audioChunk);

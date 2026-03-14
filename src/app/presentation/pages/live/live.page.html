@@ -37,6 +37,7 @@
           }
           <span class="camera-label">Live AI</span>
         </div>
+        <div class="vision-halo" [class.active]="facade.isVisionScanning()"></div>
       } @else {
         <!-- Orb Core (shown when camera is inactive) -->
         <div class="orb-core">

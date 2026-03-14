@@ -3,6 +3,7 @@ import { Observable } from 'rxjs';
 export interface LiveContentChunk {
   text?: string;
   audioChunk?: string;
+  visionCapture?: true;
 }
 
 export abstract class StorytellingPort {
