@@ -3,7 +3,6 @@ import { Subscription } from 'rxjs';
 import { StorytellingPort } from '../../core/ports/storytelling.port';
 import { MediaCapturePort } from '../../core/ports/media-capture.port';
 import { SessionPort } from '../../core/ports/session.port';
-import { EmotionState, EmotionType } from '../../core/models/emotion.model';
 import { SessionState } from '../../core/models/session-state.model';
 
 @Injectable({ providedIn: 'root' })
@@ -14,11 +13,6 @@ export class LiveStoryFacade {
 
   private readonly _currentStory = signal<string>('');
   readonly currentStory = computed(() => this._currentStory());
-
-  private readonly _currentEmotion = signal<EmotionState>({
-    type: 'neutral', confidence: 1, timestamp: Date.now()
-  });
-  readonly currentEmotion = computed(() => this._currentEmotion());
 
   private readonly _sessionState = signal<SessionState>('idle');
   readonly sessionState = computed(() => this._sessionState());
@@ -42,7 +36,7 @@ export class LiveStoryFacade {
   readonly cameraStream$ = this.mediaCapturePort.getStream();
 
   private isModelSpeaking = false;
-  private pendingMicOpen = false;
+  private connectingTimeout: ReturnType<typeof setTimeout> | null = null;
   private audioContext: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
   private waveformFrameId: number | null = null;
@@ -77,6 +71,12 @@ export class LiveStoryFacade {
     this._currentStory.set('');
     this.hasReceivedFirstChunk = false;
 
+    this.connectingTimeout = setTimeout(() => {
+      if (this._sessionState() === 'connecting') {
+        this._handleError(new Error('No se pudo conectar con el narrador. Comprueba tu conexión e inténtalo de nuevo.'));
+      }
+    }, 15000);
+
     this.sessionSubs.unsubscribe();
     this.sessionSubs = new Subscription();
 
@@ -94,6 +94,10 @@ export class LiveStoryFacade {
         next: (chunk) => {
           if (!this.hasReceivedFirstChunk) {
             this.hasReceivedFirstChunk = true;
+            if (this.connectingTimeout !== null) {
+              clearTimeout(this.connectingTimeout);
+              this.connectingTimeout = null;
+            }
             this._sessionState.set('active');
             this._startWaveformLoop();
             console.log('[CUE] ✅ Primer chunk recibido — sesión activa');
@@ -128,6 +132,10 @@ export class LiveStoryFacade {
   }
 
   endStorytelling(): void {
+    if (this.connectingTimeout !== null) {
+      clearTimeout(this.connectingTimeout);
+      this.connectingTimeout = null;
+    }
     this._saveSession();
     this._sessionState.set('idle');
     this._isCapturing.set(false);
@@ -144,13 +152,6 @@ export class LiveStoryFacade {
       this.audioContext.close();
       this.audioContext = null;
       this.analyser = null;
-    }
-  }
-
-  updateEmotion(type: EmotionType, confidence: number): void {
-    this._currentEmotion.set({ type, confidence, timestamp: Date.now() });
-    if (confidence > 0.8 && this.isSessionActive()) {
-      this.storytellingPort.sendText(`El niño ahora se siente ${type}`);
     }
   }
 
@@ -249,6 +250,10 @@ export class LiveStoryFacade {
   }
 
   private _handleError(error: unknown): void {
+    if (this.connectingTimeout !== null) {
+      clearTimeout(this.connectingTimeout);
+      this.connectingTimeout = null;
+    }
     console.error('Live Story Facade Error:', error);
     const message = error instanceof Error ? error.message : 'Error de conexión';
     this._errorMessage.set(message);

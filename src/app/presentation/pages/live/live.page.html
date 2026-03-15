@@ -20,21 +20,6 @@
         <!-- Camera Hero (replaces orb core when active) -->
         <div class="camera-hero">
           <video #previewVideo autoplay muted playsinline class="video-feed"></video>
-          @if (facade.currentEmotion().type !== 'neutral') {
-            <div class="emotion-badge">
-              @switch (facade.currentEmotion().type) {
-                @case ('happy') {
-                  <ion-icon name="happy" color="success"></ion-icon>
-                }
-                @case ('scared') {
-                  <ion-icon name="alert-circle" color="warning"></ion-icon>
-                }
-                @case ('excited') {
-                  <ion-icon name="happy" color="tertiary"></ion-icon>
-                }
-              }
-            </div>
-          }
           <span class="camera-label">Live AI</span>
         </div>
         <div class="vision-halo" [class.active]="facade.isVisionScanning()"></div>

@@ -16,6 +16,8 @@ export class FirebaseStorytellingAdapter implements StorytellingPort {
   private isModelTurn = false;
   private isSpeaking = false;
   private sessionReady = false;
+  private activityEndTimer: ReturnType<typeof setTimeout> | null = null;
+  private nudgeCooldownUntil = 0;
 
   private readonly getConfigFn = httpsCallable<{ agentId: string }, AgentConfig>(this.functions, 'getLiveConfig');
 
@@ -63,10 +65,22 @@ export class FirebaseStorytellingAdapter implements StorytellingPort {
 
             if (config.visionNudgeIntervalSeconds > 0) {
               this.nudgeTimer = setInterval(() => {
-                if (this.lastVideoFrame && this.session && !this.isModelTurn) {
-                  console.log('[CUE] 👁️ Vision nudge enviado');
+                const now = Date.now();
+                if (
+                  this.lastVideoFrame &&
+                  this.session &&
+                  !this.isModelTurn &&
+                  now > this.nudgeCooldownUntil
+                ) {
+                  console.log('[CUE] 👁️ Vision nudge enviado con frame');
                   this.session.sendClientContent({
-                    turns: [{ role: 'user', parts: [{ text: config.visionNudgeText }] }],
+                    turns: [{
+                      role: 'user',
+                      parts: [
+                        { inlineData: { mimeType: 'image/jpeg', data: this.lastVideoFrame } },
+                        { text: config.visionNudgeText },
+                      ],
+                    }],
                     turnComplete: true,
                   });
                 }
@@ -98,11 +112,25 @@ export class FirebaseStorytellingAdapter implements StorytellingPort {
 
     if (silent) {
       if (this.isSpeaking) {
-        this.isSpeaking = false;
-        this.session.sendRealtimeInput({ activityEnd: {} });
-        console.log('[CUE] 🔇 Fin de voz detectado');
+        // Debounce activityEnd to avoid false cuts on natural speech pauses.
+        if (!this.activityEndTimer) {
+          this.activityEndTimer = setTimeout(() => {
+            this.activityEndTimer = null;
+            if (this.isSpeaking) {
+              this.isSpeaking = false;
+              this.session?.sendRealtimeInput({ activityEnd: {} });
+              console.log('[CUE] 🔇 Fin de voz detectado');
+            }
+          }, 350);
+        }
       }
       return;
+    }
+
+    // Voice detected — cancel any pending activityEnd debounce.
+    if (this.activityEndTimer) {
+      clearTimeout(this.activityEndTimer);
+      this.activityEndTimer = null;
     }
 
     if (!this.isSpeaking) {
@@ -138,6 +166,10 @@ export class FirebaseStorytellingAdapter implements StorytellingPort {
       clearInterval(this.nudgeTimer);
       this.nudgeTimer = null;
     }
+    if (this.activityEndTimer !== null) {
+      clearTimeout(this.activityEndTimer);
+      this.activityEndTimer = null;
+    }
     this.session?.close();
     this.session = null;
     this.lastVideoFrame = null;
@@ -145,6 +177,7 @@ export class FirebaseStorytellingAdapter implements StorytellingPort {
     this.isModelTurn = false;
     this.isSpeaking = false;
     this.sessionReady = false;
+    this.nudgeCooldownUntil = 0;
   }
 
   private _handleMessage(msg: LiveServerMessage): void {
@@ -173,6 +206,8 @@ export class FirebaseStorytellingAdapter implements StorytellingPort {
     if (msg.serverContent.turnComplete) {
       console.log('[CUE] ✔️ Turno del modelo completo — mic abierto');
       this.isModelTurn = false;
+      // Cooldown: give time for local audio playback to finish before next nudge.
+      this.nudgeCooldownUntil = Date.now() + 3000;
       this.chunkSubject.next({ turnComplete: true });
     }
   }
