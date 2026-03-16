@@ -18,16 +18,15 @@ graph TB
     subgraph CORE["🔷 Core Layer — zero external deps"]
         direction LR
         subgraph PORTS["Ports (abstract classes)"]
-            STP["StorytellingPort"]
+            STP["StorytellingPort\n↳ LiveContentChunk (defined here)"]
             MCP["MediaCapturePort"]
-            SP["SessionPort"]
+            SP["SessionPort\n↳ SessionRecord (defined here)"]
         end
-        subgraph MODELS["Models"]
-            M1["LiveContentChunk\n+ visionCapture?"]
+        subgraph MODELS["Models (core/models/)"]
             M2["AgentConfig"]
-            M3["EmotionState"]
+            M3["EmotionState · EmotionType"]
             M4["SessionState"]
-            M5["MediaFrame"]
+            M5["MediaFrame · StoryContext"]
         end
     end
 
@@ -53,8 +52,8 @@ graph TB
 
     %% Presentation → Application
     LP -->|"inject(LiveStoryFacade)"| LSF
-    PP -->|"inject(SessionPort)"| SP
-    EP -->|"Firestore SDK direct\n(storyThemes)"| FS
+    PP -->|"inject(SessionPort) ⚠️ intentional exception\nno facade needed — single read-only use"| SP
+    EP -->|"Firestore SDK direct ⚠️ intentional exception\nno port needed — read-only collection"| FS
 
     %% Application → Ports
     LSF -->|uses| STP
@@ -87,7 +86,7 @@ graph TB
 
     class LP,EP,PP pres
     class LSF app
-    class STP,MCP,SP,M1,M2,M3,M4,M5 core
+    class STP,MCP,SP,M2,M3,M4,M5 core
     class FSA,IMA,FSEA,MMA infra
     class GLA,FF,FS,FAUTH ext
     class DI1,DI2,DI3 di
